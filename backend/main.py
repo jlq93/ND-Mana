@@ -192,13 +192,6 @@ async def logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/login", status_code=303)
 
-
-@app.get("/favicon.ico")
-async def favicon():
-    """Serve favicon (redirect to SVG)"""
-    return RedirectResponse(url="/static/favicon.svg", status_code=301)
-
-
 # ============================================================================
 # Routers with Authentication
 # ============================================================================
