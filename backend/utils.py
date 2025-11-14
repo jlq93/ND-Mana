@@ -28,6 +28,56 @@ def validate_path_security(notes_dir: str, path: Path) -> bool:
     except ValueError:
         return False
 
+def sanitize_user_path(notes_dir: str, user_path: str, must_be_md: bool = False, allow_empty: bool = False) -> Optional[Path]:
+    """
+    Sanitize user-supplied path before combining with notes_dir.
+    Returns resolved Path if safe, otherwise None.
+    """
+    if user_path is None:
+        return None
+
+    # Allow explicit empty folder creation for some operations
+    if user_path in ("", "."):
+        if allow_empty:
+            try:
+                return Path(notes_dir).resolve()
+            except Exception:
+                return None
+        else:
+            return None
+
+    # Reject null byte injections
+    if "\x00" in user_path:
+        return None
+
+    try:
+        user_p = Path(user_path)
+    except Exception:
+        return None
+
+    # Reject absolute paths
+    if user_p.is_absolute():
+        return None
+
+    # Reject upward traversal
+    if any(part == ".." for part in user_p.parts):
+        return None
+
+    # Ensure markdown suffix if requested
+    if must_be_md and not str(user_p).endswith(".md"):
+        user_p = user_p.with_suffix(".md")
+
+    full = Path(notes_dir) / user_p
+
+    try:
+        full_resolved = full.resolve()
+    except Exception:
+        return None
+
+    if not validate_path_security(notes_dir, full_resolved):
+        return None
+
+    return full_resolved
 
 def ensure_directories(config: dict):
     """Create necessary directories if they don't exist"""
@@ -44,14 +94,19 @@ def ensure_directories(config: dict):
 
 def create_folder(notes_dir: str, folder_path: str) -> bool:
     """Create a new folder in the notes directory"""
-    full_path = Path(notes_dir) / folder_path
+    # full_path = Path(notes_dir) / folder_path
+    # Allow creating root (notes_dir) when folder_path is empty or "."
+    full_path = sanitize_user_path(notes_dir, folder_path, must_be_md=False, allow_empty=False)
     
     # Security check
-    if not validate_path_security(notes_dir, full_path):
+    if full_path is None:
         return False
-    
-    full_path.mkdir(parents=True, exist_ok=True)
-    
+
+    try:
+        full_path.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        return False
+
     return True
 
 
@@ -72,12 +127,11 @@ def get_all_folders(notes_dir: str) -> List[str]:
 
 def move_note(notes_dir: str, old_path: str, new_path: str) -> bool:
     """Move a note to a different location"""
-    old_full_path = Path(notes_dir) / old_path
-    new_full_path = Path(notes_dir) / new_path
+    old_full_path = sanitize_user_path(notes_dir, old_path, must_be_md=True)
+    new_full_path = sanitize_user_path(notes_dir, new_path, must_be_md=True)
     
     # Security checks
-    if not validate_path_security(notes_dir, old_full_path) or \
-       not validate_path_security(notes_dir, new_full_path):
+    if old_full_path is None or new_full_path is None:
         return False
     
     if not old_full_path.exists():
@@ -87,7 +141,10 @@ def move_note(notes_dir: str, old_path: str, new_path: str) -> bool:
     new_full_path.parent.mkdir(parents=True, exist_ok=True)
     
     # Move the file
-    old_full_path.rename(new_full_path)
+    try:
+        old_full_path.rename(new_full_path)
+    except Exception:
+        return False
     
     # Note: We don't automatically delete empty folders to preserve user's folder structure
     
@@ -98,12 +155,11 @@ def move_folder(notes_dir: str, old_path: str, new_path: str) -> bool:
     """Move a folder to a different location"""
     import shutil
     
-    old_full_path = Path(notes_dir) / old_path
-    new_full_path = Path(notes_dir) / new_path
+    old_full_path = sanitize_user_path(notes_dir, old_path, must_be_md=False)
+    new_full_path = sanitize_user_path(notes_dir, new_path, must_be_md=False)
     
     # Security checks
-    if not validate_path_security(notes_dir, old_full_path) or \
-       not validate_path_security(notes_dir, new_full_path):
+    if old_full_path is None or new_full_path is None:
         return False
     
     if not old_full_path.exists() or not old_full_path.is_dir():
@@ -117,7 +173,10 @@ def move_folder(notes_dir: str, old_path: str, new_path: str) -> bool:
     new_full_path.parent.mkdir(parents=True, exist_ok=True)
     
     # Move the folder
-    shutil.move(str(old_full_path), str(new_full_path))
+    try:
+        shutil.move(str(old_full_path), str(new_full_path))
+    except Exception:
+        return False
     
     # Note: We don't automatically delete empty folders to preserve user's folder structure
     
@@ -132,7 +191,10 @@ def rename_folder(notes_dir: str, old_path: str, new_path: str) -> bool:
 def delete_folder(notes_dir: str, folder_path: str) -> bool:
     """Delete a folder and all its contents"""
     try:
-        full_path = Path(notes_dir) / folder_path
+        full_path = sanitize_user_path(notes_dir, folder_path, must_be_md=False, allow_empty=False)
+        if full_path is None:
+            print(f"Invalid folder path: {folder_path}")
+            return False
         
         if not full_path.exists():
             print(f"Folder does not exist: {full_path}")
@@ -175,52 +237,53 @@ def get_all_notes(notes_dir: str) -> List[Dict]:
 
 def get_note_content(notes_dir: str, note_path: str) -> Optional[str]:
     """Get the content of a specific note"""
-    full_path = Path(notes_dir) / note_path
+    full_path = sanitize_user_path(notes_dir, note_path, must_be_md=True)
+    if full_path is None:
+        return None
     
     if not full_path.exists() or not full_path.is_file():
         return None
-    
-    # Security check: ensure the path is within notes_dir
-    if not validate_path_security(notes_dir, full_path):
-        return None
-    
+
     with open(full_path, 'r', encoding='utf-8') as f:
         return f.read()
 
 
 def save_note(notes_dir: str, note_path: str, content: str) -> bool:
     """Save or update a note"""
-    full_path = Path(notes_dir) / note_path
-    
-    # Ensure .md extension
-    if not note_path.endswith('.md'):
-        full_path = full_path.with_suffix('.md')
-    
-    # Security check
-    if not validate_path_security(notes_dir, full_path):
+    # Ensure .md extension before sanitizing
+    candidate = Path(note_path)
+    if not str(candidate).endswith('.md'):
+        candidate = candidate.with_suffix('.md')
+
+    full_path = sanitize_user_path(notes_dir, str(candidate), must_be_md=True)
+    if full_path is None:
         return False
-    
+
     # Create parent directories if needed
     full_path.parent.mkdir(parents=True, exist_ok=True)
     
-    with open(full_path, 'w', encoding='utf-8') as f:
-        f.write(content)
+    try:
+        with open(full_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+    except Exception:
+        return False
     
     return True
 
 
 def delete_note(notes_dir: str, note_path: str) -> bool:
     """Delete a note"""
-    full_path = Path(notes_dir) / note_path
+    full_path = sanitize_user_path(notes_dir, note_path, must_be_md=True)
+    if full_path is None:
+        return False
     
     if not full_path.exists():
         return False
     
-    # Security check
-    if not validate_path_security(notes_dir, full_path):
+    try:
+        full_path.unlink()
+    except Exception:
         return False
-    
-    full_path.unlink()
     
     # Remove empty parent directories
     try:
@@ -279,7 +342,9 @@ def search_notes(notes_dir: str, query: str) -> List[Dict]:
 
 def create_note_metadata(notes_dir: str, note_path: str) -> Dict:
     """Get metadata for a note"""
-    full_path = Path(notes_dir) / note_path
+    full_path = sanitize_user_path(notes_dir, note_path, must_be_md=True)
+    if full_path is None:
+        return {}
     
     if not full_path.exists():
         return {}

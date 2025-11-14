@@ -383,6 +383,25 @@ function noteApp() {
             // Force Alpine reactivity by creating a new object reference
             this.folderTree = { ...tree };
         },
+
+        // Helper: escape HTML for safe insertion into innerHTML
+        escapeHtml(str) {
+            if (str == null) return '';
+            return String(str).replace(/[&<>"']/g, function(m) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                }[m];
+            });
+        },
+
+        // Helper: produce a safely quoted JS string for inline handlers
+        escapeJs(str) {
+            return JSON.stringify(str == null ? '' : String(str));
+        },
         
         // Render folder recursively (helper for deep nesting)
         renderFolderRecursive(folder, level = 0, isTopLevel = false) {
@@ -391,22 +410,26 @@ function noteApp() {
             let html = '';
             const isExpanded = this.expandedFolders.has(folder.path);
             
+            // Use helpers to safely inject values into the generated HTML/JS
+            const folderPathJs = this.escapeJs(folder.path);
+            const folderNameHtml = this.escapeHtml(folder.name);
+
             // Render this folder's header
             html += `
                 <div>
                     <div 
                         draggable="true"
                         x-data="{}"
-                        @dragstart="onFolderDragStart('${folder.path.replace(/'/g, "\\'")}' )"
+                        @dragstart="onFolderDragStart(${folderPathJs})"
                         @dragend="onFolderDragEnd()"
                         @dragover.prevent
-                        @drop.stop="onFolderDrop('${folder.path.replace(/'/g, "\\'")}')"
+                        @drop.stop="onFolderDrop(${folderPathJs})"
                         class="folder-item px-2 py-2 mb-1 text-sm rounded transition-all relative"
                         style="color: var(--text-primary); cursor: pointer;"
                         :class="draggedNote || draggedFolder ? 'border-2 border-dashed border-accent-primary bg-accent-light' : 'border-2 border-transparent'"
                         @mouseover="if(!draggedNote && !draggedFolder) $el.style.backgroundColor='var(--bg-hover)'"
                         @mouseout="if(!draggedNote && !draggedFolder) $el.style.backgroundColor='transparent'"
-                        @click="toggleFolder('${folder.path.replace(/'/g, "\\'")}')"
+                        @click="toggleFolder(${folderPathJs})"
                     >
                         <div class="flex items-center gap-1">
                             <button 
@@ -418,31 +441,31 @@ function noteApp() {
                                 </svg>
                             </button>
                             <span class="flex items-center gap-1 flex-1" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; pointer-events: none;">
-                                <span>${folder.name}</span>
+                                <span>${folderNameHtml}</span>
                                 ${folder.notes.length === 0 && (!folder.children || Object.keys(folder.children).length === 0) ? '<span class="text-xs" style="color: var(--text-tertiary); font-weight: 400;">(empty)</span>' : ''}
                             </span>
                         </div>
                         <div class="hover-buttons flex gap-1 transition-opacity absolute right-2 top-1/2 transform -translate-y-1/2" style="opacity: 0; pointer-events: none; background: linear-gradient(to right, transparent, var(--bg-hover) 20%, var(--bg-hover)); padding-left: 20px;" @click.stop>
                             <button 
-                                @click="createNoteInFolder('${folder.path.replace(/'/g, "\\'")}')"
+                                @click="createNoteInFolder(${folderNameHtml})"
                                 class="px-1.5 py-0.5 text-xs rounded hover:brightness-110"
                                 style="background-color: var(--bg-tertiary); color: var(--text-secondary);"
                                 title="New note in this folder"
                             >📄</button>
                             <button 
-                                @click="createNewFolder('${folder.path.replace(/'/g, "\\'")}')"
+                                @click="createNewFolder(${folderPathJs})"
                                 class="px-1.5 py-0.5 text-xs rounded hover:brightness-110"
                                 style="background-color: var(--bg-tertiary); color: var(--text-secondary);"
                                 title="New subfolder"
                             >📁</button>
                             <button 
-                                @click="renameFolder('${folder.path.replace(/'/g, "\\'")}', '${folder.name.replace(/'/g, "\\'")}')"
+                                @click="renameFolder(${folderPathJs}, ${this.escapeJs(folder.name)})"
                                 class="px-1.5 py-0.5 text-xs rounded hover:brightness-110"
                                 style="background-color: var(--bg-tertiary); color: var(--text-secondary);"
                                 title="Rename folder"
                             >✏️</button>
                             <button 
-                                @click="deleteFolder('${folder.path.replace(/'/g, "\\'")}', '${folder.name.replace(/'/g, "\\'")}')"
+                                @click="deleteFolder(${folderPathJs}, ${folderPathJs})"
                                 class="px-1 py-0.5 text-xs rounded hover:brightness-110"
                                 style="color: var(--error);"
                                 title="Delete folder and all contents"
@@ -474,21 +497,24 @@ function noteApp() {
                 if (folder.notes && folder.notes.length > 0) {
                     folder.notes.forEach(note => {
                         const isCurrentNote = this.currentNote === note.path;
+                        const notePathJs = this.escapeJs(note.path);
+                        const noteNameHtml = this.escapeHtml(note.name);
+                        const noteDisplayStyle = isCurrentNote ? 'background-color: var(--accent-light); color: var(--accent-primary);' : 'color: var(--text-primary);';
                         html += `
                             <div 
                                 draggable="true"
                                 x-data="{}"
-                                @dragstart="onNoteDragStart('${note.path.replace(/'/g, "\\'")}', $event)"
+                                @dragstart="onNoteDragStart('${notePathJs}', $event)"
                                 @dragend="onNoteDragEnd()"
-                                @click="loadNote('${note.path.replace(/'/g, "\\'")}')"
+                                @click="loadNote(${notePathJs})"
                                 class="note-item px-3 py-2 mb-1 text-sm rounded relative"
-                                style="${isCurrentNote ? 'background-color: var(--accent-light); color: var(--accent-primary);' : 'color: var(--text-primary);'} cursor: pointer;"
-                                @mouseover="if('${note.path}' !== currentNote) $el.style.backgroundColor='var(--bg-hover)'"
-                                @mouseout="if('${note.path}' !== currentNote) $el.style.backgroundColor='transparent'"
+                                style="${noteDisplayStyle} cursor: pointer;"
+                                @mouseover="if('${notePathJs}' !== currentNote) $el.style.backgroundColor='var(--bg-hover)'"
+                                @mouseout="if('${notePathJs}' !== currentNote) $el.style.backgroundColor='transparent'"
                             >
-                                <span class="truncate">${note.name}</span>
+                                <span class="truncate">${noteNameHtml}</span>
                                 <button 
-                                    @click.stop="deleteNote('${note.path.replace(/'/g, "\\'")}', '${note.name.replace(/'/g, "\\'")}')"
+                                    @click.stop="deleteNote(${notePathJs}, ${this.escapeJs(note.name)})"
                                     class="note-delete-btn absolute right-2 top-1/2 transform -translate-y-1/2 px-1 py-0.5 text-xs rounded hover:brightness-110 transition-opacity"
                                     style="opacity: 0; color: var(--error);"
                                     title="Delete note"
