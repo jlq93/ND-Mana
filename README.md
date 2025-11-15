@@ -84,7 +84,7 @@ Use the pre-built image directly from GHCR - no building required!
 >    # Now you have everything - run docker-compose below
 >    ```
 
-> **🔐 Security Note**: Authentication is **enabled by default** with password `admin`. For testing/local use, this is fine. If exposing to a network, **change the password immediately** - see [AUTHENTICATION.md](data/notes/AUTHENTICATION.md) for instructions.
+> **🔐 Security Note**: Authentication is **enabled by default** with password `admin`. For testing/local use, this is fine. If exposing to a network, **change the password immediately** - see [AUTHENTICATION.md](data/AUTHENTICATION.md) for instructions.
 
 **Option 1: Docker Compose (Recommended)**
 
@@ -98,6 +98,7 @@ curl -O https://raw.githubusercontent.com/gamosoft/notediscovery/main/docker-com
 docker-compose -f docker-compose.ghcr.yml up -d
 
 # Access at http://localhost:8000
+# Login with default password: admin
 
 # View logs
 docker-compose -f docker-compose.ghcr.yml logs -f
@@ -207,7 +208,7 @@ Once you've started NoteDiscovery, you'll find comprehensive guides on:
 - 🌐 **API.md** - REST API documentation and examples
 - 🔐 **AUTHENTICATION.md** - Enable password protection for your instance
 
-**Can't wait to start the app?** Browse the documentation notes directly on GitHub in the [`data/notes/`](data/notes/) folder!
+**Can't wait to start the app?** Browse the documentation notes directly on GitHub in the [`data/`](data/) folder!
 
 💡 **Tip:** These documentation files are regular markdown notes—edit them, add your own notes, or use them as templates. It's your knowledge base!
 
@@ -228,14 +229,14 @@ NoteDiscovery is designed for **self-hosted, private use**. Please keep these se
 ### Authentication
 - **Password protection is ENABLED by default** with password: `admin`
 - ⚠️ **CHANGE THE DEFAULT PASSWORD IMMEDIATELY** if exposing to a network!
-- See **[AUTHENTICATION.md](data/notes/AUTHENTICATION.md)** for complete setup instructions
+- See **[AUTHENTICATION.md](data/AUTHENTICATION.md)** for complete setup instructions
 - To disable auth, set `security.enabled: false` in `config.yaml`
 - Change password with Docker: `docker-compose exec notediscovery python generate_password.py`
 - Perfect for single-user or small team deployments
 - For multi-user setups, consider a reverse proxy with OAuth/SSO
 
 ### Data Privacy
-- Your notes are stored as **plain text markdown files** in `data/notes/`
+- Your notes are stored as **plain text markdown files** in `data/`
 - No data is sent to external services
 - Regular backups are recommended
 

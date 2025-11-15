@@ -12,12 +12,11 @@ server:
   reload: false  # Set to true for development
   
 storage:
-  notes_dir: "./data/notes"
+  notes_dir: "./data"
   plugins_dir: "./plugins"
   
 search:
   enabled: true
-  index_dir: "./data/search_index"
   
 security:
   # Authentication settings

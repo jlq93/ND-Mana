@@ -29,8 +29,8 @@ COPY plugins ./plugins
 COPY themes ./themes
 COPY generate_password.py .
 
-# Create data directories
-RUN mkdir -p data/notes data/search_index
+# Create data directory
+RUN mkdir -p data
 
 # Expose port
 EXPOSE 8000
