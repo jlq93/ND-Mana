@@ -2,8 +2,8 @@
 # Easy to rebrand: just change these values!
 
 app:
-  name: "NoteDiscovery"
-  tagline: "Your Self-Hosted Knowledge Base"
+  name: "NoteDiscovery1"
+  tagline: "Your Self-Hosted Mana"
   version: "1.0.0"
   
 server:
