@@ -5,6 +5,7 @@ Utility functions for file operations, search, and markdown processing
 import os
 import re
 import shutil
+import logging
 from pathlib import Path
 from typing import List, Dict, Optional
 from datetime import datetime
@@ -23,9 +24,14 @@ def validate_path_security(notes_dir: str, path: Path) -> bool:
         True if path is safe, False otherwise
     """
     try:
-        path.resolve().relative_to(Path(notes_dir).resolve())
+        notes_dir_resolved = Path(notes_dir).resolve()
+        path_resolved = path.resolve()
+        # ensure path_resolved is within notes_dir_resolved
+        path_resolved.relative_to(notes_dir_resolved)
         return True
     except ValueError:
+        return False
+    except Exception:
         return False
 
 def sanitize_user_path(notes_dir: str, user_path: str, must_be_md: bool = False, allow_empty: bool = False) -> Optional[Path]:
@@ -40,27 +46,44 @@ def sanitize_user_path(notes_dir: str, user_path: str, must_be_md: bool = False,
     if user_path in ("", "."):
         if allow_empty:
             try:
+                notes_root_path = Path(notes_dir).resolve()
+                # For destructive actions, never allow returning the notes root (must_be_md implies file operation)
+                if must_be_md:
+                    return None
+                return notes_root_path
+            except Exception:
+                return None
+
+    # Reject null byte injections
+    if "\x00" in user_path:
+        return None
+
+    # Normalize path
+    norm_user_path = os.path.normpath(user_path)
+
+    # After normpath, '.' means current dir (safe only if 
+    # explicitly allowed), empty disallowed, and '..' means traversal
+    if os.path.isabs(norm_user_path):
+        return None
+    
+    if norm_user_path in ("", ".",):
+    # Defensive: should have been caught above, but just in case
+        if allow_empty:
+            try:
                 return Path(notes_dir).resolve()
             except Exception:
                 return None
         else:
             return None
 
-    # Reject null byte injections
-    if "\x00" in user_path:
-        return None
-
-    try:
-        user_p = Path(user_path)
-    except Exception:
-        return None
-
-    # Reject absolute paths
-    if user_p.is_absolute():
+    if norm_user_path.startswith("..") or any(part == ".." for part in Path(norm_user_path).parts):
         return None
 
     # Reject upward traversal
-    if any(part == ".." for part in user_p.parts):
+    #if any(part == ".." for part in user_p.parts):
+    try:
+        user_p = Path(norm_user_path)
+    except Exception:
         return None
 
     # Ensure markdown suffix if requested
@@ -100,6 +123,7 @@ def create_folder(notes_dir: str, folder_path: str) -> bool:
     
     # Security check
     if full_path is None:
+        logging.warning(f"Invalid folder path: {folder_path}")
         return False
 
     try:
@@ -141,6 +165,9 @@ def move_note(notes_dir: str, old_path: str, new_path: str) -> bool:
     new_full_path.parent.mkdir(parents=True, exist_ok=True)
     
     # Move the file
+    # Final security check before renaming: Ensure both source and destination are inside notes_dir
+    if not validate_path_security(notes_dir, new_full_path) or not validate_path_security(notes_dir, old_full_path):
+        return False
     try:
         old_full_path.rename(new_full_path)
     except Exception:
@@ -173,6 +200,9 @@ def move_folder(notes_dir: str, old_path: str, new_path: str) -> bool:
     new_full_path.parent.mkdir(parents=True, exist_ok=True)
     
     # Move the folder
+    # Final containment check before moving
+    if not validate_path_security(notes_dir, old_full_path) or not validate_path_security(notes_dir, new_full_path):
+        return False
     try:
         shutil.move(str(old_full_path), str(new_full_path))
     except Exception:
@@ -239,6 +269,7 @@ def get_note_content(notes_dir: str, note_path: str) -> Optional[str]:
     """Get the content of a specific note"""
     full_path = sanitize_user_path(notes_dir, note_path, must_be_md=True)
     if full_path is None:
+        logging.warning(f"Invalid folder path: {full_path}")
         return None
     
     if not full_path.exists() or not full_path.is_file():
@@ -257,6 +288,16 @@ def save_note(notes_dir: str, note_path: str, content: str) -> bool:
 
     full_path = sanitize_user_path(notes_dir, str(candidate), must_be_md=True)
     if full_path is None:
+        logging.warning(f"Invalid folder path: {full_path}")
+        return False
+
+    # FINAL SECURITY CHECK before writing file
+    notes_dir_resolved = Path(notes_dir).resolve()
+    try:
+        full_path_resolved = full_path.resolve()
+        # Ensure target file is within notes directory
+        full_path_resolved.relative_to(notes_dir_resolved)
+    except Exception:
         return False
 
     # Create parent directories if needed
@@ -275,6 +316,7 @@ def delete_note(notes_dir: str, note_path: str) -> bool:
     """Delete a note"""
     full_path = sanitize_user_path(notes_dir, note_path, must_be_md=True)
     if full_path is None:
+        logging.warning(f"Invalid folder path: {full_path}")
         return False
     
     if not full_path.exists():
