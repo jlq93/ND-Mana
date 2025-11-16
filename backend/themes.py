@@ -21,7 +21,8 @@ def get_available_themes(themes_dir: str) -> List[Dict[str, str]]:
         "monokai": "🎞️",
         "vue-high-contrast": "💚",
         "cobalt2": "🌊",
-        "vs-blue": "🔷"
+        "vs-blue": "🔷",
+        "retro-dark": "🚀"
     }
     
     # Load all themes from themes folder
