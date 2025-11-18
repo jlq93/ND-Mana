@@ -734,8 +734,9 @@ function noteApp() {
             const notePath = this.draggedNoteForLink;
             const noteName = notePath.split('/').pop().replace('.md', '');
             
-            // Create markdown link
-            const link = `[${noteName}](${notePath})`;
+            // Create markdown link (URL-encode the path to handle spaces and special characters)
+            const encodedPath = notePath.split('/').map(segment => encodeURIComponent(segment)).join('/');
+            const link = `[${noteName}](${encodedPath})`;
             
             // Insert at cursor position
             const textarea = event.target;
@@ -775,7 +776,8 @@ function noteApp() {
             event.preventDefault();
             
             // Remove any anchor from the href (e.g., "note.md#section" -> "note.md")
-            const notePath = href.split('#')[0];
+            // Also decode URL encoding (e.g., "note%203.md" -> "note 3.md")
+            const notePath = decodeURIComponent(href.split('#')[0]);
             
             // Skip if it's just an anchor link
             if (!notePath) return;
@@ -2424,11 +2426,11 @@ function noteApp() {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${noteName}</title>
     
-    <!-- Highlight.js for code syntax highlighting -->
+    <!-- Highlight.js for code syntax highlighting (v11.9.0) -->
     ${highlightTheme ? `<link rel="stylesheet" href="${highlightTheme}">` : '<!-- No highlight.js theme detected -->'}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     
-    <!-- MathJax for LaTeX math rendering (same config as preview) -->
+    <!-- MathJax for LaTeX math rendering (v3.2.2) -->
     <script>
         MathJax = {
             tex: {
@@ -2452,11 +2454,11 @@ function noteApp() {
             }
         };
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.js"></script>
     
-    <!-- Mermaid.js for diagrams (if used in note) -->
+    <!-- Mermaid.js for diagrams (v10.9.0) -->
     <script type="module">
-        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.esm.min.mjs';
         const isDark = ${this.getThemeType() === 'dark'};
         mermaid.initialize({ 
             startOnLoad: false,
