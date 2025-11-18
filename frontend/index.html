@@ -909,26 +909,18 @@
                                     >⊟</button>
                                 </div>
                             </div>
-                            <div class="text-xs" style="color: var(--text-tertiary); opacity: 0.8;">
-                                💡 Drag=Move | <kbd style="padding: 1px 4px; border-radius: 3px; background: var(--bg-tertiary); font-size: 10px;">Ctrl</kbd>+Drag=Link
-                            </div>
-                        </div>
-                        
-                        <!-- Root drop zone - only visible when dragging -->
-                        <div 
-                            x-show="draggedNote || draggedFolder"
-                            x-transition
-                            @dragover.prevent="dragOverFolder = '';"
-                            @dragenter.prevent="dragOverFolder = '';"
-                            @dragleave="dragOverFolder = null;"
-                            @drop="onFolderDrop('')"
-                            class="mb-2 px-2 py-1.5 rounded border-2 border-dashed transition-all"
-                            :class="dragOverFolder === '' ? 'bg-accent-light' : ''"
-                            :style="dragOverFolder === '' ? 'border-color: var(--accent-primary);' : 'border-color: var(--border-primary);'"
-                        >
-                            <div class="text-xs text-center font-medium flex items-center justify-center gap-1" 
-                                 :style="dragOverFolder === '' ? 'color: var(--accent-primary);' : 'color: var(--text-secondary);'">
-                                <span>📂 Root</span>
+                            <!-- Dual-purpose: hint text OR root drop zone when dragging -->
+                            <div 
+                                class="text-xs px-2 py-1 rounded transition-all border-2"
+                                :class="(draggedNote || draggedFolder) ? 'border-dashed font-medium text-center' : 'border-transparent'"
+                                :style="(draggedNote || draggedFolder) ? (dragOverFolder === '' ? 'color: var(--accent-primary); background-color: var(--accent-light); border-color: var(--accent-primary);' : 'color: var(--text-secondary); border-color: var(--border-primary);') : 'color: var(--text-tertiary); opacity: 0.8;'"
+                                @dragover.prevent="if(draggedNote || draggedFolder) dragOverFolder = '';"
+                                @dragenter.prevent="if(draggedNote || draggedFolder) dragOverFolder = '';"
+                                @dragleave="if(draggedNote || draggedFolder) dragOverFolder = null;"
+                                @drop="if(draggedNote || draggedFolder) onFolderDrop('')"
+                            >
+                                <span x-show="!draggedNote && !draggedFolder">💡 Drag=Move | <kbd style="padding: 1px 4px; border-radius: 3px; background: var(--bg-tertiary); font-size: 10px;">Ctrl</kbd>+Drag=Link</span>
+                                <span x-show="draggedNote || draggedFolder">📂 Drop here for Root</span>
                             </div>
                         </div>
                         
@@ -944,7 +936,7 @@
                                 @dragstart="onNoteDragStart(note.path, $event)"
                                 @dragend="onNoteDragEnd()"
                                 @click="loadNote(note.path)"
-                                class="note-item px-3 py-2 mb-1 text-sm rounded relative"
+                                class="note-item px-3 py-2 mb-1 text-sm rounded relative border-2 border-transparent"
                                 :style="(currentNote === note.path ? 'background-color: var(--accent-light); color: var(--accent-primary);' : 'color: var(--text-primary);') + (draggedNote || draggedFolder ? ' cursor: grabbing;' : ' cursor: pointer;')"
                                 @mouseover="if(currentNote !== note.path) $el.style.backgroundColor='var(--bg-hover)'"
                                 @mouseout="if(currentNote !== note.path) $el.style.backgroundColor='transparent'"

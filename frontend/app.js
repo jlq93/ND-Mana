@@ -536,7 +536,7 @@ function noteApp() {
                                 @dragstart="onNoteDragStart('${note.path.replace(/'/g, "\\'")}', $event)"
                                 @dragend="onNoteDragEnd()"
                                 @click="loadNote('${note.path.replace(/'/g, "\\'")}')"
-                                class="note-item px-3 py-2 mb-1 text-sm rounded relative"
+                                class="note-item px-3 py-2 mb-1 text-sm rounded relative border-2 border-transparent"
                                 style="${isCurrentNote ? 'background-color: var(--accent-light); color: var(--accent-primary);' : 'color: var(--text-primary);'} cursor: pointer;"
                                 @mouseover="if('${note.path}' !== currentNote) $el.style.backgroundColor='var(--bg-hover)'"
                                 @mouseout="if('${note.path}' !== currentNote) $el.style.backgroundColor='transparent'"
