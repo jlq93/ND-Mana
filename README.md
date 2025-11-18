@@ -200,17 +200,15 @@ python run.py
 
 ## 📚 Documentation
 
-Want to learn more? **The full documentation lives inside the app as interactive notes!**
+Want to learn more?
 
-Once you've started NoteDiscovery, you'll find comprehensive guides on:
 - 🎨 **[THEMES.md](documentation/THEMES.md)** - Theme customization and creating custom themes
 - ✨ **[FEATURES.md](documentation/FEATURES.md)** - Complete feature list and keyboard shortcuts
 - 🧮 **[MATHJAX.md](documentation/MATHJAX.md)** - LaTeX/Math notation examples and syntax reference
+- 📊 **[MERMAID.md](documentation/MERMAID.md)** - Diagram creation with Mermaid (flowcharts, sequence diagrams, and more)
 - 🔌 **[PLUGINS.md](documentation/PLUGINS.md)** - Plugin system and available plugins
 - 🌐 **[API.md](documentation/API.md)** - REST API documentation and examples
 - 🔐 **[AUTHENTICATION.md](documentation/AUTHENTICATION.md)** - Enable password protection for your instance
-
-**Can't wait to start the app?** Browse the documentation notes directly on GitHub in the [`documentation/`](documentation/) folder!
 
 💡 **Pro Tip:** If you clone this repository, you can mount the `documentation/` folder to view these docs inside the app:
 
