@@ -225,11 +225,7 @@ def delete_note(notes_dir: str, note_path: str) -> bool:
     
     full_path.unlink()
     
-    # Remove empty parent directories
-    try:
-        full_path.parent.rmdir()
-    except OSError:
-        pass  # Directory not empty, that's fine
+    # Note: We don't automatically delete empty folders to preserve user's folder structure
     
     return True
 
