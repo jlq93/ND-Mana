@@ -43,17 +43,6 @@ This helps ensure that:
 - Changes to the plugin or theme system architecture
 - Breaking changes to the API
 
-### What Can Be Submitted Directly?
-
-- Bug fixes
-- Documentation improvements
-- Small UI tweaks and improvements
-- Performance optimizations
-- Code quality improvements (refactoring, cleanup)
-- New themes (following existing theme structure)
-- New plugins (following existing plugin structure)
-- Translation/localization updates
-
 ## 🚀 How to Contribute
 
 ### 1. Fork and Clone
