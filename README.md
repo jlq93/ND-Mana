@@ -212,6 +212,7 @@ Want to learn more?
 - 🔌 **[PLUGINS.md](documentation/PLUGINS.md)** - Plugin system and available plugins
 - 🌐 **[API.md](documentation/API.md)** - REST API documentation and examples
 - 🔐 **[AUTHENTICATION.md](documentation/AUTHENTICATION.md)** - Enable password protection for your instance
+- 🔧 **[ENVIRONMENT_VARIABLES.md](documentation/ENVIRONMENT_VARIABLES.md)** - Configure settings via environment variables
 
 💡 **Pro Tip:** If you clone this repository, you can mount the `documentation/` folder to view these docs inside the app:
 

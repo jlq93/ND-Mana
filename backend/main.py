@@ -55,6 +55,25 @@ with open(version_path, 'r', encoding='utf-8') as f:
     version = f.read().strip()
     config['app']['version'] = version
 
+# Environment variable overrides for authentication settings
+# Allows different configs for local vs production deployments
+if 'AUTHENTICATION_ENABLED' in os.environ:
+    auth_enabled = os.getenv('AUTHENTICATION_ENABLED', 'false').lower() in ('true', '1', 'yes')
+    config['authentication']['enabled'] = auth_enabled
+    print(f"🔐 Authentication {'ENABLED' if auth_enabled else 'DISABLED'} (from AUTHENTICATION_ENABLED env var)")
+else:
+    print(f"🔐 Authentication {'ENABLED' if config.get('authentication', {}).get('enabled', False) else 'DISABLED'} (from config.yaml)")
+
+# Allow password hash to be set via environment variable (useful for demos)
+if 'AUTHENTICATION_PASSWORD_HASH' in os.environ:
+    config['authentication']['password_hash'] = os.getenv('AUTHENTICATION_PASSWORD_HASH')
+    print("🔑 Password hash loaded from AUTHENTICATION_PASSWORD_HASH env var")
+
+# Allow secret key to be set via environment variable (for session security)
+if 'AUTHENTICATION_SECRET_KEY' in os.environ:
+    config['authentication']['secret_key'] = os.getenv('AUTHENTICATION_SECRET_KEY')
+    print("🔐 Secret key loaded from AUTHENTICATION_SECRET_KEY env var")
+
 # Initialize app
 app = FastAPI(
     title=config['app']['name'],
@@ -62,33 +81,69 @@ app = FastAPI(
     version=config['app']['version']
 )
 
-# CORS middleware for development
+# CORS middleware configuration
+# Use config.yaml to control allowed origins (default: ["*"] for self-hosted simplicity)
+allowed_origins = config.get('server', {}).get('allowed_origins', ["*"])
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+print(f"🌐 CORS allowed origins: {allowed_origins}")
+
+# ============================================================================
+# Security Helpers
+# ============================================================================
+
+def safe_error_message(error: Exception, user_message: str = "An error occurred") -> str:
+    """
+    Return safe error message for API responses.
+    In debug mode, returns full error details.
+    In production, returns generic message and logs full details server-side.
+    
+    Args:
+        error: The caught exception
+        user_message: User-friendly message to show in production
+    
+    Returns:
+        Safe error message string
+    """
+    error_details = f"{type(error).__name__}: {str(error)}"
+    
+    # Always log the full error server-side
+    print(f"⚠️  [ERROR] {error_details}")
+    
+    # In debug mode, return detailed error to help with development
+    if config.get('server', {}).get('debug', False):
+        return error_details
+    
+    # In production, return generic message (full details already logged)
+    return user_message
 
 # Session middleware for authentication
 app.add_middleware(
     SessionMiddleware,
-    secret_key=config.get('security', {}).get('secret_key', 'insecure_default_key_change_this'),
-    max_age=config.get('security', {}).get('session_max_age', 604800),  # 7 days default
+    secret_key=config.get('authentication', {}).get('secret_key', 'insecure_default_key_change_this'),
+    max_age=config.get('authentication', {}).get('session_max_age', 604800),  # 7 days default
     same_site='lax',
     https_only=False  # Set to True if using HTTPS
 )
 
-# Rate limiting (enabled via environment variable for demo deployments)
-ENABLE_RATE_LIMITING = os.getenv('ENABLE_RATE_LIMITING', 'false').lower() == 'true'
+# Demo mode - Centralizes all demo-specific restrictions
+# When DEMO_MODE=true, enables rate limiting and other demo protections
+# Add additional demo restrictions here as needed (e.g., disable certain features)
+DEMO_MODE = os.getenv('DEMO_MODE', 'false').lower() in ('true', '1', 'yes')
 
-if ENABLE_RATE_LIMITING:
+if DEMO_MODE:
+    # Enable rate limiting for demo deployments
     limiter = Limiter(key_func=get_remote_address, default_limits=["200/hour"])
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-    print("⚠️  Rate limiting ENABLED (ENABLE_RATE_LIMITING=true)")
+    print("🎭 DEMO MODE enabled - Rate limiting active")
 else:
+    # Production/self-hosted mode - no restrictions
     # Create a dummy limiter that doesn't actually limit
     class DummyLimiter:
         def limit(self, *args, **kwargs):
@@ -96,7 +151,6 @@ else:
                 return func
             return decorator
     limiter = DummyLimiter()
-    print("✅ Rate limiting DISABLED (set ENABLE_RATE_LIMITING=true to enable)")
 
 # Ensure required directories exist
 ensure_directories(config)
@@ -149,7 +203,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 def auth_enabled() -> bool:
     """Check if authentication is enabled in config"""
-    return config.get('security', {}).get('enabled', False)
+    return config.get('authentication', {}).get('enabled', False)
 
 
 async def require_auth(request: Request):
@@ -164,7 +218,7 @@ async def require_auth(request: Request):
 
 def verify_password(password: str) -> bool:
     """Verify password against stored hash"""
-    password_hash = config.get('security', {}).get('password_hash', '')
+    password_hash = config.get('authentication', {}).get('password_hash', '')
     if not password_hash:
         return False
     
@@ -430,8 +484,8 @@ async def get_config():
         "tagline": config['app']['tagline'],
         "version": config['app']['version'],
         "searchEnabled": config['search']['enabled'],
-        "security": {
-            "enabled": config.get('security', {}).get('enabled', False)
+        "authentication": {
+            "enabled": config.get('authentication', {}).get('enabled', False)
         }
     }
 
@@ -475,8 +529,10 @@ async def create_new_folder(request: Request, data: dict):
             "path": folder_path,
             "message": "Folder created successfully"
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to create folder"))
 
 
 @api_router.get("/images/{image_path:path}")
@@ -506,7 +562,7 @@ async def get_image(image_path: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to load image"))
 
 
 @api_router.post("/upload-image")
@@ -562,7 +618,7 @@ async def upload_image(request: Request, file: UploadFile = File(...), note_path
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to upload image"))
 
 
 @api_router.post("/notes/move")
@@ -590,8 +646,10 @@ async def move_note_endpoint(request: Request, data: dict):
             "newPath": new_path,
             "message": "Note moved successfully"
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to move note"))
 
 
 @api_router.post("/folders/move")
@@ -616,8 +674,10 @@ async def move_folder_endpoint(request: Request, data: dict):
             "newPath": new_path,
             "message": "Folder moved successfully"
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to move folder"))
 
 
 @api_router.post("/folders/rename")
@@ -642,8 +702,10 @@ async def rename_folder_endpoint(request: Request, data: dict):
             "newPath": new_path,
             "message": "Folder renamed successfully"
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to rename folder"))
 
 
 @api_router.delete("/folders/{folder_path:path}")
@@ -664,8 +726,10 @@ async def delete_folder_endpoint(request: Request, folder_path: str):
             "path": folder_path,
             "message": "Folder deleted successfully"
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to delete folder"))
 
 
 # --- Tags Endpoints ---
@@ -682,7 +746,7 @@ async def list_tags():
         tags = get_all_tags(config['storage']['notes_dir'])
         return {"tags": tags}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to load tags"))
 
 
 @api_router.get("/tags/{tag_name}")
@@ -704,7 +768,7 @@ async def get_notes_by_tag_endpoint(tag_name: str):
             "notes": notes
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to get notes by tag"))
 
 
 # --- Notes Endpoints ---
@@ -717,7 +781,7 @@ async def list_notes():
         folders = get_all_folders(config['storage']['notes_dir'])
         return {"notes": notes, "folders": folders}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to list notes"))
 
 
 @api_router.get("/notes/{note_path:path}")
@@ -741,7 +805,7 @@ async def get_note(note_path: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to load note"))
 
 
 @api_router.post("/notes/{note_path:path}")
@@ -779,8 +843,10 @@ async def create_or_update_note(request: Request, note_path: str, content: dict)
             "message": "Note created successfully" if is_new_note else "Note saved successfully",
             "content": note_content  # Return the (potentially modified) content
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to save note"))
 
 
 @api_router.delete("/notes/{note_path:path}")
@@ -800,8 +866,10 @@ async def remove_note(request: Request, note_path: str):
             "success": True,
             "message": "Note deleted successfully"
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to delete note"))
 
 
 @api_router.get("/search")
@@ -820,7 +888,7 @@ async def search(q: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Search failed"))
 
 
 @api_router.get("/graph")
@@ -844,7 +912,7 @@ async def get_graph():
         
         return {"nodes": nodes, "edges": edges}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to generate graph data"))
 
 
 @api_router.get("/plugins")
@@ -864,7 +932,7 @@ async def calculate_note_stats(content: str):
         stats = plugin.calculate_stats(content)
         return {"enabled": True, "stats": stats}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to calculate note statistics"))
 
 
 @api_router.post("/plugins/{plugin_name}/toggle")
@@ -884,7 +952,7 @@ async def toggle_plugin(request: Request, plugin_name: str, enabled: dict):
             "enabled": is_enabled
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=safe_error_message(e, "Failed to toggle plugin"))
 
 
 @app.get("/health")

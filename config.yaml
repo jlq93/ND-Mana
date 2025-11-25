@@ -10,6 +10,14 @@ server:
   port: 8000
   reload: false  # Set to true for development
   
+  # CORS (Cross-Origin Resource Sharing) configuration
+  # For self-hosted use, "*" is fine. For production, specify allowed domains.
+  # Examples: ["http://localhost:8000", "https://yourdomain.com"]
+  allowed_origins: ["*"]
+  
+  # Debug mode - shows detailed error messages (DISABLE in production!)
+  debug: false
+  
 storage:
   notes_dir: "./data"
   plugins_dir: "./plugins"
@@ -17,7 +25,7 @@ storage:
 search:
   enabled: true
   
-security:
+authentication:
   # Authentication settings
   # Set enabled to true to require login
   enabled: false

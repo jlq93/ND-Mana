@@ -20,10 +20,14 @@ services:
     envVars:
       - key: PORT
         value: 8000
-      - key: ENABLE_RATE_LIMITING
-        value: "true"
       - key: DEMO_MODE
         value: "true"
+      - key: AUTHENTICATION_ENABLED
+        value: "true"
+      - key: AUTHENTICATION_PASSWORD_HASH
+        value: "$2b$12$t/6PGExFzdpU2PUta0iVY.eDQwvu63kH.c/d4bEnnHaQ5CspH1yrG" # admin
+      - key: AUTHENTICATION_SECRET_KEY
+        value: "4f36da5af76627301dcdc0347c4b111bdc6c86ae830444af852de935198c3210"
     
     # Manual deployment only
     autoDeploy: false

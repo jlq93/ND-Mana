@@ -754,7 +754,7 @@
                 </div>
                 <p class="text-xs mb-3" style="color: var(--text-secondary);" x-text="appTagline"></p>
                 <!-- Logout Button (only show if auth is enabled) -->
-                <div x-data="{ authEnabled: false }" x-init="fetch('/api/config').then(r => r.json()).then(d => authEnabled = d.security?.enabled || false)">
+                <div x-data="{ authEnabled: false }" x-init="fetch('/api/config').then(r => r.json()).then(d => authEnabled = d.authentication?.enabled || false)">
                     <a x-show="authEnabled" 
                        href="/logout" 
                        class="flex items-center justify-center gap-2 px-3 py-2 text-sm rounded transition-colors"
