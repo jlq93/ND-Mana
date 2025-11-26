@@ -634,6 +634,13 @@ function noteApp() {
                     notePath = `${targetFolder}/${notePath}`;
                 }
                 
+                // CRITICAL: Check if note already exists
+                const existingNote = this.notes.find(note => note.path === notePath);
+                if (existingNote) {
+                    alert(`A note named "${this.newTemplateNoteName.trim()}" already exists in this location.\nPlease choose a different name.`);
+                    return;
+                }
+                
                 // Create note from template
                 const response = await fetch('/api/templates/create-note', {
                     method: 'POST',
