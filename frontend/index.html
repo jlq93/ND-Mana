@@ -615,6 +615,12 @@
         }
         
         /* Mobile Responsive Styles */
+        /* Z-index hierarchy (for reference):
+           - Mobile sidebar: 1000
+           - Mobile overlay: 999
+           - Template modal: 1100 (must be above sidebar)
+           - Dropdown menu: 50 (below everything)
+        */
         @media (max-width: 768px) {
             /* Hide sidebar by default on mobile */
             .mobile-sidebar {
@@ -946,7 +952,7 @@
                             <span>New Folder</span>
                         </button>
                         <button 
-                            @click.stop="showTemplateModal = true; showNewDropdown = false"
+                            @click.stop="showTemplateModal = true; showNewDropdown = false; mobileSidebarOpen = false"
                             class="w-full px-4 py-2.5 text-sm text-left flex items-center gap-3 transition-colors"
                             style="color: var(--text-primary);"
                             onmouseover="this.style.backgroundColor='var(--bg-hover)'"
@@ -1151,6 +1157,22 @@
             <template x-if="!currentNote && !currentImage">
                 <!-- Notes Homepage -->
                 <div class="flex-1 overflow-y-auto custom-scrollbar" style="background-color: var(--bg-primary);">
+                    <!-- Mobile Menu Button (Homepage) -->
+                    <div class="mobile-menu-button px-4 py-3" style="background-color: var(--bg-secondary); border-bottom: 1px solid var(--border-primary); display: none;">
+                        <button 
+                            @click="mobileSidebarOpen = !mobileSidebarOpen"
+                            class="p-2 rounded-lg"
+                            style="color: var(--text-primary);"
+                            onmouseover="this.style.backgroundColor='var(--bg-hover)'"
+                            onmouseout="this.style.backgroundColor='transparent'"
+                            title="Toggle sidebar"
+                        >
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    
                     <!-- Welcome Hero - Show when app is empty -->
                     <template x-if="isAppEmpty">
                         <div class="flex flex-col items-center justify-center h-full py-16 text-center">
@@ -1632,8 +1654,8 @@
     <div x-show="showTemplateModal" 
          @click.self="showTemplateModal = false; selectedTemplate = ''; newTemplateNoteName = ''"
          @keydown.escape.window="showTemplateModal && (showTemplateModal = false, selectedTemplate = '', newTemplateNoteName = '')"
-         class="fixed inset-0 flex items-center justify-center z-50"
-         style="background-color: rgba(0, 0, 0, 0.5);"
+         class="fixed inset-0 flex items-center justify-center"
+         style="background-color: rgba(0, 0, 0, 0.5); z-index: 1100;"
          x-cloak>
         <div class="rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
              style="background-color: var(--bg-secondary); color: var(--text-primary);"
