@@ -23,6 +23,34 @@ if ($currentBranch -ne "main" -and $currentBranch -ne "master") {
 
 Write-Host "Releasing version $Version from branch: $currentBranch" -ForegroundColor Green
 
+# Pull latest changes from remote
+Write-Host "Pulling latest changes from origin/$currentBranch..." -ForegroundColor Yellow
+$pullOutput = git pull origin $currentBranch 2>&1
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "`nError: Failed to pull latest changes from remote." -ForegroundColor Red
+    Write-Host $pullOutput -ForegroundColor Yellow
+    
+    # Check if it's a merge conflict
+    if ($pullOutput -match "CONFLICT" -or $pullOutput -match "conflict") {
+        Write-Host "`nMerge conflict detected! Please resolve conflicts manually:" -ForegroundColor Red
+        Write-Host "  1. Resolve conflicts in affected files" -ForegroundColor Yellow
+        Write-Host "  2. Stage resolved files: git add ." -ForegroundColor Yellow
+        Write-Host "  3. Complete merge: git commit" -ForegroundColor Yellow
+        Write-Host "  4. Re-run this script" -ForegroundColor Yellow
+    } else {
+        Write-Host "`nPlease resolve the issue and try again." -ForegroundColor Yellow
+    }
+    
+    exit 1
+}
+
+if ($pullOutput -match "Already up to date") {
+    Write-Host "Already up to date." -ForegroundColor Green
+} else {
+    Write-Host "Pull successful." -ForegroundColor Green
+}
+
 # Read current version and validate it's higher
 if (Test-Path "VERSION") {
     $currentVersion = (Get-Content "VERSION" -Raw).Trim()
@@ -101,6 +129,8 @@ if (-not $SkipCommit) {
     git commit -m "Bump version to $Version"
     
     # Push commits first
+    # NOTE: This will trigger GitHub's built-in 'pages-build-deployment' workflow
+    # if you have GitHub Pages configured and changes were made to docs/ folder
     Write-Host "Pushing commits..." -ForegroundColor Yellow
     git push
 }
