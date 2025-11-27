@@ -99,7 +99,7 @@ function noteApp() {
         
         // Dropdown state
         showNewDropdown: false,
-        dropdownTargetFolder: '', // Folder context for "New" dropdown (empty = root)
+        dropdownTargetFolder: null, // Folder context for "New" dropdown ('' = root, null = not set)
         dropdownPosition: { top: 0, left: 0 }, // Position for contextual dropdown
         
         // Template state
@@ -628,9 +628,16 @@ function noteApp() {
                     notePath += '.md';
                 }
                 
-                // If we have a target folder context, create in that folder
-                if (this.dropdownTargetFolder || this.selectedHomepageFolder) {
-                    const targetFolder = this.dropdownTargetFolder || this.selectedHomepageFolder;
+                // Determine target folder: use dropdown context if set, otherwise homepage folder
+                let targetFolder;
+                if (this.dropdownTargetFolder !== null && this.dropdownTargetFolder !== undefined) {
+                    targetFolder = this.dropdownTargetFolder; // Can be '' for root or a folder path
+                } else {
+                    targetFolder = this.selectedHomepageFolder || '';
+                }
+                
+                // If we have a target folder, create note in that folder
+                if (targetFolder) {
                     notePath = `${targetFolder}/${notePath}`;
                 }
                 
@@ -1998,7 +2005,7 @@ function noteApp() {
         
         closeDropdown() {
             this.showNewDropdown = false;
-            this.dropdownTargetFolder = ''; // Reset folder context
+            this.dropdownTargetFolder = null; // Reset folder context
         },
         
         // =====================================================
@@ -2007,7 +2014,15 @@ function noteApp() {
         
         async createNote(folderPath = null) {
             // Use provided folder path, or dropdown target folder context, or homepage folder
-            const targetFolder = folderPath !== null ? folderPath : (this.dropdownTargetFolder || this.selectedHomepageFolder);
+            // Note: Check dropdownTargetFolder !== null to distinguish between '' (root) and not set
+            let targetFolder;
+            if (folderPath !== null) {
+                targetFolder = folderPath;
+            } else if (this.dropdownTargetFolder !== null && this.dropdownTargetFolder !== undefined) {
+                targetFolder = this.dropdownTargetFolder; // Can be '' for root or a folder path
+            } else {
+                targetFolder = this.selectedHomepageFolder || '';
+            }
             this.closeDropdown();
             
             const promptText = targetFolder 
@@ -2060,7 +2075,15 @@ function noteApp() {
         
         async createFolder(parentPath = null) {
             // Use provided parent path, or dropdown target folder context, or homepage folder
-            const targetFolder = parentPath !== null ? parentPath : (this.dropdownTargetFolder || this.selectedHomepageFolder);
+            // Note: Check dropdownTargetFolder !== null to distinguish between '' (root) and not set
+            let targetFolder;
+            if (parentPath !== null) {
+                targetFolder = parentPath;
+            } else if (this.dropdownTargetFolder !== null && this.dropdownTargetFolder !== undefined) {
+                targetFolder = this.dropdownTargetFolder; // Can be '' for root or a folder path
+            } else {
+                targetFolder = this.selectedHomepageFolder || '';
+            }
             this.closeDropdown();
             
             const promptText = targetFolder 
